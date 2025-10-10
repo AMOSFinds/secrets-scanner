@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
-from fastapi import FastAPI, HTTPException, Form, Request, BackgroundTasks, Header, Depends
+from fastapi import FastAPI, HTTPException, Form, Request, BackgroundTasks, Header, Depends, Response
+from fastapi.responses import RedirectResponse
 from .notify import send_slack, send_email
 from pathlib import Path
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -29,10 +30,15 @@ GITHUB_OAUTH_REDIRECT_URL = os.getenv("GITHUB_OAUTH_REDIRECT_URL")
 GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 
-async def require_api_key(x_api_key: str | None = Header(default=None)):
+async def require_api_key(
+    request: Request,
+    x_api_key: str | None = Header(default=None),
+):
+    # If no API_KEY set, protection is off
     if not API_KEY:
-        return # protection disabled when no key is set
-    if x_api_key != API_KEY:
+        return
+    supplied = x_api_key or request.cookies.get("api_key") or request.query_params.get("key")
+    if supplied != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 def dedupe_findings(items: List[Finding]) -> List[Finding]:
@@ -189,7 +195,7 @@ async def github_webhook(request: Request, x_hub_signature_256: str | None = Hea
     return {"ok": True, "scanned_files": scanned, "findings": len(findings)}
 
 @app.get("/auth/github/login")
-async def github_login(request: Request, _: None = Depends(require_api_key)):
+async def github_login(request: Request):
     if not (GITHUB_CLIENT_ID and GITHUB_OAUTH_REDIRECT_URL):
         raise HTTPException(status_code=500, detail="OAuth not configured")
     state = secrets.token_urlsafe(24)
@@ -229,3 +235,12 @@ async def github_callback(request: Request, code: str | None = None, state: str 
         request.session["gh_token"] = token
     # simple success page
     return HTMLResponse("<h1>GitHub connected.</h1><p>You can now scan private repos.</p><p><a href='/ui'>Back to UI</a></p>")
+
+@app.get("/login")
+def login(key: str, response: Response):
+    if not API_KEY or key != API_KEY:
+        raise HTTPException(status_code=401, detail="Bad key")
+    resp = RedirectResponse(url="/ui", status_code=302)
+    # 7-day cookie; HttpOnly so JS can’t read it
+    resp.set_cookie("api_key", key, httponly=True, samesite="lax", max_age=60*60*24*7)
+    return resp
