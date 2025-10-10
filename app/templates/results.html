@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Scan Results</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 0.5rem;
+        text-align: left;
+      }
+      th {
+        background: #fafafa;
+        cursor: pointer;
+      }
+      .badge {
+        padding: 0.2rem 0.5rem;
+        border-radius: 0.5rem;
+      }
+      .HIGH {
+        background: #ffe3e3;
+      }
+      .MED {
+        background: #fff6d6;
+      }
+      .LOW {
+        background: #e8f5ff;
+      }
+      a {
+        color: #0a58ca;
+        text-decoration: none;
+      }
+      .controls {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 0.5rem 0;
+      }
+      .muted {
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Results for {{ result.repo_url }}</h1>
+    <p>
+      Scanned files: {{ result.scanned_files }} | Findings:
+      <span id="count">{{ result.findings|length }}</span>
+    </p>
+
+    <div class="controls">
+      <label
+        ><input type="checkbox" class="sev" value="HIGH" checked /> HIGH</label
+      >
+      <label
+        ><input type="checkbox" class="sev" value="MED" checked /> MED</label
+      >
+      <label
+        ><input type="checkbox" class="sev" value="LOW" checked /> LOW</label
+      >
+      <label class="muted"
+        >Path filter: <input id="pathFilter" placeholder="e.g. .env or config/"
+      /></label>
+      <span class="muted"
+        >Page {{ result.page }} of {{ (result.total_findings //
+        result.page_size) + (1 if (result.total_findings % result.page_size)
+        else 0) or 1 }}</span
+      >
+      <form action="/scan-ui" method="post" style="display: inline">
+        <input type="hidden" name="repo_url" value="{{ result.repo_url }}" />
+        <input type="hidden" name="branch" value="main" />
+        <input
+          type="hidden"
+          name="page"
+          value="{{ result.page - 1 if result.page > 1 else 1 }}"
+        />
+        <input type="hidden" name="page_size" value="{{ result.page_size }}" />
+        <button type="submit">Prev</button>
+      </form>
+      <form action="/scan-ui" method="post" style="display: inline">
+        <input type="hidden" name="repo_url" value="{{ result.repo_url }}" />
+        <input type="hidden" name="branch" value="main" />
+        <input type="hidden" name="page" value="{{ result.page + 1 }}" />
+        <input type="hidden" name="page_size" value="{{ result.page_size }}" />
+        <button type="submit">Next</button>
+      </form>
+      <form action="/scan.csv" method="post" style="margin-left: auto">
+        <input type="hidden" name="repo_url" value="{{ result.repo_url }}" />
+        <input type="hidden" name="branch" value="main" />
+        <button type="submit">Download CSV</button>
+      </form>
+    </div>
+
+    {% if result.findings %}
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th data-k="file">File</th>
+          <th data-k="line">Line</th>
+          <th data-k="pattern">Pattern</th>
+          <th data-k="entropy">Entropy</th>
+          <th data-k="severity">Severity</th>
+          <th data-k="snippet">Snippet</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        {% for f in result.findings %}
+        <tr data-sev="{{ f.severity }}">
+          <td class="file">{{ f.file_path }}</td>
+          <td class="line">{{ f.line }}</td>
+          <td class="pattern">{{ f.pattern }}</td>
+          <td class="entropy">{{ '%.2f'|format(f.entropy) }}</td>
+          <td class="severity">
+            <span class="badge {{ f.severity }}">{{ f.severity }}</span>
+          </td>
+          <td class="snippet"><code>{{ f.snippet }}</code></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No findings 🎉</p>
+    {% endif %}
+
+    <p style="margin-top: 2rem"><a href="/ui">← New scan</a></p>
+
+    <script>
+      const checks = Array.from(document.querySelectorAll(".sev"));
+      const pathInput = document.getElementById("pathFilter");
+      const tbody = document.getElementById("tbody");
+      const countSpan = document.getElementById("count");
+      const resetBtn = document.getElementById("resetBtn");
+
+      function applyFilters() {
+        const allowed = new Set(
+          checks.filter((c) => c.checked).map((c) => c.value)
+        );
+        const pathq = (pathInput.value || "").toLowerCase();
+        let visible = 0;
+        Array.from(tbody.rows).forEach((tr) => {
+          const sev = tr.getAttribute("data-sev");
+          const file = tr.querySelector(".file").textContent.toLowerCase();
+          const show = allowed.has(sev) && (!pathq || file.includes(pathq));
+          tr.style.display = show ? "" : "none";
+          if (show) visible++;
+        });
+        countSpan.textContent = visible;
+      }
+      checks.forEach((c) => c.addEventListener("change", applyFilters));
+      pathInput.addEventListener("input", applyFilters);
+      resetBtn.addEventListener("click", () => {
+        checks.forEach((c) => (c.checked = true));
+        pathInput.value = "";
+        applyFilters();
+      });
+      applyFilters();
+
+      // Simple sort by clicking headers
+      const tbl = document.getElementById("tbl");
+      let sortState = { k: null, dir: 1 };
+      tbl.querySelectorAll("th").forEach((th) => {
+        th.addEventListener("click", () => {
+          const k = th.dataset.k; // file|line|pattern|entropy|severity|snippet
+          const idx = Array.from(th.parentNode.children).indexOf(th);
+          const rows = Array.from(tbody.rows).filter(
+            (r) => r.style.display !== "none"
+          );
+          const dir = sortState.k === k ? -sortState.dir : 1;
+          rows.sort((a, b) => {
+            let av = a.children[idx].textContent,
+              bv = b.children[idx].textContent;
+            if (k === "line" || k === "entropy") {
+              av = parseFloat(av) || 0;
+              bv = parseFloat(bv) || 0;
+            }
+            return av > bv ? dir : av < bv ? -dir : 0;
+          });
+          rows.forEach((r) => tbody.appendChild(r));
+          sortState = { k, dir };
+        });
+      });
+    </script>
+  </body>
+</html>

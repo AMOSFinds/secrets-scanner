@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Secrets Scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+      input,
+      button {
+        padding: 0.6rem 0.8rem;
+        font-size: 1rem;
+      }
+      form {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 0.5rem;
+        text-align: left;
+      }
+      .pill {
+        padding: 0.2rem 0.5rem;
+        border-radius: 0.6rem;
+        background: #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Secrets Scanner</h1>
+      <button id="ghBtn" type="button">Connect GitHub</button>
+    </header>
+    <script>
+      document.getElementById("ghBtn").addEventListener("click", async () => {
+        const apiKey = prompt(
+          "If API key is enabled, enter it now (or leave blank):"
+        );
+        const res = await fetch("/auth/github/login", {
+          headers: apiKey ? { "X-API-Key": apiKey } : {},
+        });
+        if (!res.ok) {
+          alert("OAuth not configured or API key invalid.");
+          return;
+        }
+        const data = await res.json();
+        window.location.href = data.authorize_url;
+      });
+    </script>
+    <form action="/scan-ui" method="post">
+      <input
+        type="url"
+        name="repo_url"
+        placeholder="https://github.com/owner/repo"
+        required
+        style="flex: 1"
+      />
+      <input type="text" name="branch" value="main" />
+      <button type="submit">Scan</button>
+    </form>
+    <p>Enter a public GitHub repo URL and optional branch.</p>
+  </body>
+</html>

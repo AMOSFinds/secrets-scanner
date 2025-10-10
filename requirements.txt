@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
+pydantic
+python-multipart
+pyyaml
+jinja2
+aiosmtplib
+itsdangerous
