@@ -90,11 +90,14 @@ async def scan_repo(req: ScanRequest, background_tasks: BackgroundTasks = None):
         max_files=getattr(req, "max_files", None),
     )
 
+    token = req.github_token or os.getenv("GITHUB_PAT")
+    files = await list_repo_tree(owner, repo, branch=req.branch, token=token, max_files=getattr(req, "max_files", None))
+
     findings = []
     scanned = 0
     for path, url in files:
         try:
-            content = await fetch_file(url, token=req.github_token)
+            content = await fetch_file(url, token=token)
         except Exception:
             continue
         scanned += 1
