@@ -46,7 +46,7 @@ async def list_repo_tree(owner: str, repo: str, branch: str = "main", token: str
     base = f"https://api.github.com/repos/{owner}/{repo}"
     headers = {"Accept": "application/vnd.github+json"}
     if token:
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = f"token {token}"
     async with httpx.AsyncClient(timeout=30) as client:
         r = await _request(client, "GET", f"{base}/git/trees/{branch}?recursive=1", headers)
         tree = r.json().get("tree", [])
@@ -65,7 +65,7 @@ async def list_repo_tree(owner: str, repo: str, branch: str = "main", token: str
 async def fetch_file(url: str, token: str | None = None) -> str:
     headers = {}
     if token:
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = f"token {token}"
     async with httpx.AsyncClient(timeout=30) as client:
         async with sema:
             r = await _request(client, "GET", url, headers)
@@ -78,7 +78,7 @@ async def fetch_file_at_ref(owner: str, repo: str, ref: str, path: str, token: s
     url = f"{RAW_BASE}/{owner}/{repo}/{ref}/{path}"
     headers = {}
     if token:
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = f"token {token}"
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.get(url, headers=headers)
         if r.status_code == 200:

@@ -81,14 +81,7 @@ async def scan_repo(req: ScanRequest, background_tasks: BackgroundTasks = None):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid repo_url. Use https://github.com/owner/repo")
 
-    # Fetch file list (with cap)
-    files = await list_repo_tree(
-        owner,
-        repo,
-        branch=req.branch,
-        token=req.github_token,
-        max_files=getattr(req, "max_files", None),
-    )
+    
 
     token = req.github_token or os.getenv("GITHUB_PAT")
     files = await list_repo_tree(owner, repo, branch=req.branch, token=token, max_files=getattr(req, "max_files", None))
