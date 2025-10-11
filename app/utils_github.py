@@ -42,21 +42,64 @@ def changed_paths_from_push(payload: Dict[str, Any]) -> List[str]:
     # de-dup
     return sorted(set(paths))
 
+
+async def _get_default_branch(client: httpx.AsyncClient, owner: str, repo: str, headers: dict) -> str | None:
+    # GET /repos/{owner}/{repo} -> { default_branch: "main" | "master" | ... }
+    await limiter.wait()
+    r = await client.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)
+    if r.status_code in (403, 429):
+        retry = int(r.headers.get("Retry-After", "1"))
+        await asyncio.sleep(min(retry, 5))
+        await limiter.wait()
+        r = await client.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)
+    if r.status_code == 200:
+        return r.json().get("default_branch")
+    return None
+
 async def list_repo_tree(owner: str, repo: str, branch: str = "main", token: str | None = None, max_files: int | None = None) -> List[Tuple[str, str]]:
     base = f"https://api.github.com/repos/{owner}/{repo}"
     headers = {"Accept": "application/vnd.github+json"}
     if token:
+        # Fine-grained PATs start with github_pat_... and MUST use "token" here
         headers["Authorization"] = f"token {token}"
+
     async with httpx.AsyncClient(timeout=30) as client:
-        r = await _request(client, "GET", f"{base}/git/trees/{branch}?recursive=1", headers)
-        tree = r.json().get("tree", [])
-        out = []
+        # 1st attempt: requested branch
+        try_branches = [branch]
+
+        # add repo default branch if different/unknown
+        default_branch = await _get_default_branch(client, owner, repo, headers)
+        if default_branch and default_branch not in try_branches:
+            try_branches.append(default_branch)
+
+        # add 'master' as a universal fallback
+        if "master" not in try_branches:
+            try_branches.append("master")
+
+        tree = None
+        chosen_branch = None
+        for br in try_branches:
+            try:
+                r = await _request(client, "GET", f"{base}/git/trees/{br}?recursive=1", headers)
+                tree = r.json().get("tree", [])
+                chosen_branch = br
+                break
+            except httpx.HTTPStatusError as e:
+                # Only swallow 404 and try next; re-raise others
+                if e.response is None or e.response.status_code != 404:
+                    raise
+
+        if tree is None:
+            # no branch worked
+            raise httpx.HTTPStatusError("No valid branch found", request=None, response=None)
+
+        out: List[Tuple[str, str]] = []
         for item in tree:
             if item.get("type") == "blob":
                 path = item["path"]
                 if any(path.endswith(ext) for ext in RAW_SKIP_EXTS):
                     continue
-                out.append((path, f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"))
+                out.append((path, f"https://raw.githubusercontent.com/{owner}/{repo}/{chosen_branch}/{path}"))
                 if max_files and len(out) >= max_files:
                     break
         return out
