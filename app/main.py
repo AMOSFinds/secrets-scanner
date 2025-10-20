@@ -194,6 +194,19 @@ async def github_webhook(request: Request, x_hub_signature_256: str | None = Hea
 
     return {"ok": True, "scanned_files": scanned, "findings": len(findings)}
 
+
+@app.get("/access", response_class=HTMLResponse)
+def access_form(request: Request):
+    return templates.TemplateResponse("access.html", {"request": request})
+
+@app.post("/access")
+def access_submit(key: str = Form(...)):
+    if not API_KEY or key != API_KEY:
+        raise HTTPException(status_code=401, detail="Bad key")
+    resp = RedirectResponse(url="/ui", status_code=302)
+    resp.set_cookie("api_key", key, httponly=True, samesite="lax", max_age=60*60*24*7)
+    return resp
+
 @app.get("/auth/github/login")
 async def github_login(request: Request):
     if not (GITHUB_CLIENT_ID and GITHUB_OAUTH_REDIRECT_URL):

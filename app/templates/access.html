@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Enter Access Key — Secrets Scanner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-zinc-950 text-zinc-100">
+    <div class="min-h-screen flex items-center justify-center px-6">
+      <form
+        method="post"
+        action="/access"
+        class="w-full max-w-sm space-y-4 p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40"
+      >
+        <h1 class="text-xl font-semibold">Enter Access Key</h1>
+        <p class="text-sm text-zinc-400">
+          Paste the key you received to continue.
+        </p>
+        <input
+          name="key"
+          type="password"
+          required
+          class="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-800 focus:outline-none"
+          placeholder="API key"
+        />
+        <button
+          class="w-full px-4 py-2 rounded-lg bg-emerald-500 text-zinc-950 font-semibold hover:bg-emerald-400"
+        >
+          Continue
+        </button>
+      </form>
+    </div>
+  </body>
+</html>
