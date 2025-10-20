@@ -103,7 +103,7 @@ POST	/scan.csv	Download scan results as CSV
 POST	/webhook/github	GitHub webhook endpoint
 GET	/auth/github/login	Start GitHub OAuth flow
 GET	/auth/github/callback	Receive OAuth token
-🧠 Roadmap
+ Roadmap
 
  GitLab and Bitbucket integration
 
@@ -129,14 +129,14 @@ Create a feature branch
 
 Commit your changes
 
-Submit a pull request 🎯
+Submit a pull request �
 
-📜 License
+ License
 
 MIT License — free to use, modify, and self-host for any purpose.
 Please credit the project if you use it commercially.
 
-🌐 Links
+ Links
 
 Demo: https://secrets-scanner-jlw2.onrender.com/ui
 
@@ -144,7 +144,7 @@ Docs: coming soon
 
 Slack Alerts Setup Guide: /docs/slack.md (planned)
 
-⭐ Support the Project
+ Support the Project
 
 If you find this tool useful:
 
@@ -155,3 +155,4 @@ Share feedback or ideas via issues
 Contribute to the next release
 
 Together we can make open-source security faster, simpler, and safer for everyone.
+
