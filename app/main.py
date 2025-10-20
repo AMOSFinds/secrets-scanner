@@ -62,7 +62,11 @@ app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
 
 
 @app.get("/")
-def root():
+def landing(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/health")
+def health():
     return {"ok": True, "service": "secrets-scanner"}
 
 

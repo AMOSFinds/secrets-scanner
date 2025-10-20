@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Secrets Scanner — Privacy-First, Open-Source</title>
+    <meta
+      name="description"
+      content="Detect exposed API keys and credentials in GitHub repos — self-hosted, privacy-first, open-source."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>🔐</text></svg>"
+    />
+    <!-- Tailwind (CDN) for quick styling; fine for a simple landing page -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-zinc-950 text-zinc-100">
+    <header
+      class="max-w-6xl mx-auto px-6 py-8 flex items-center justify-between"
+    >
+      <div class="text-xl font-semibold">Secrets Scanner</div>
+      <nav class="space-x-4 text-sm">
+        <a href="/ui" class="hover:underline">Open App</a>
+        <a
+          href="https://github.com/<your-username>/secrets-scanner"
+          class="hover:underline"
+          target="_blank"
+          rel="noopener"
+          >GitHub</a
+        >
+        <a href="#features" class="hover:underline">Features</a>
+        <a href="#how" class="hover:underline">How it Works</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Hero -->
+      <section
+        class="max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-10 items-center"
+      >
+        <div>
+          <h1 class="text-4xl md:text-5xl font-bold leading-tight">
+            Detect Exposed Secrets —
+            <span class="text-emerald-400">Privately</span> & Instantly.
+          </h1>
+          <p class="mt-5 text-zinc-300">
+            Find API keys, tokens, and passwords across your GitHub repos —
+            without sending code to third parties. Self-hostable, open-source,
+            and fast.
+          </p>
+          <div class="mt-8 flex flex-wrap gap-3">
+            <a
+              href="/ui"
+              class="px-5 py-3 rounded-xl bg-emerald-500 text-zinc-950 font-semibold hover:bg-emerald-400 transition"
+              >Open the App</a
+            >
+            <a
+              href="https://github.com/<your-username>/secrets-scanner"
+              target="_blank"
+              rel="noopener"
+              class="px-5 py-3 rounded-xl border border-zinc-700 hover:border-zinc-500 transition"
+              >View on GitHub</a
+            >
+          </div>
+          <p class="mt-4 text-xs text-zinc-400">
+            No data stored. GitHub tokens used read-only. Runs in memory.
+          </p>
+        </div>
+        <div class="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+          <!-- Simple “screenshot” style card -->
+          <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <div
+              class="flex items-center justify-between text-xs text-zinc-400"
+            >
+              <span>Secrets Scanner</span>
+              <span class="inline-flex items-center gap-1"
+                >Status:
+                <span
+                  class="w-2 h-2 rounded-full bg-emerald-500 inline-block"
+                ></span
+              ></span>
+            </div>
+            <div
+              class="mt-3 rounded-lg bg-zinc-900 border border-zinc-800 p-4 text-sm"
+            >
+              <div class="text-zinc-300">Findings</div>
+              <ul class="mt-2 space-y-2">
+                <li class="flex items-center justify-between">
+                  <span class="text-zinc-400"
+                    >HIGH · STRIPE_SECRET_KEY ·
+                    <span class="text-zinc-300">settings.py:2</span></span
+                  >
+                  <span
+                    class="px-2 py-0.5 text-xs rounded bg-red-500/15 text-red-300 border border-red-500/30"
+                    >HIGH</span
+                  >
+                </li>
+                <li class="flex items-center justify-between">
+                  <span class="text-zinc-400"
+                    >MED · GENERIC_PASSWORD ·
+                    <span class="text-zinc-300">settings.py:1</span></span
+                  >
+                  <span
+                    class="px-2 py-0.5 text-xs rounded bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                    >MED</span
+                  >
+                </li>
+              </ul>
+            </div>
+            <div class="mt-3 text-xs text-zinc-500">
+              Slack alert sent · CSV export ready
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section id="features" class="max-w-6xl mx-auto px-6 py-14">
+        <h2 class="text-2xl font-semibold">Why Secrets Scanner?</h2>
+        <div class="mt-6 grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="rounded-xl border border-zinc-800 p-4 bg-zinc-900/40">
+            <div class="text-emerald-400 font-semibold">Privacy-First</div>
+            <p class="mt-2 text-sm text-zinc-300">
+              No code stored. Runs in memory. Self-hosted or deploy anywhere.
+            </p>
+          </div>
+          <div class="rounded-xl border border-zinc-800 p-4 bg-zinc-900/40">
+            <div class="text-emerald-400 font-semibold">Fast & Lightweight</div>
+            <p class="mt-2 text-sm text-zinc-300">
+              Paste a repo, scan instantly. No heavy CI/CD setup required.
+            </p>
+          </div>
+          <div class="rounded-xl border border-zinc-800 p-4 bg-zinc-900/40">
+            <div class="text-emerald-400 font-semibold">Private Repos</div>
+            <p class="mt-2 text-sm text-zinc-300">
+              GitHub OAuth/PAT for secure read-only access to private repos.
+            </p>
+          </div>
+          <div class="rounded-xl border border-zinc-800 p-4 bg-zinc-900/40">
+            <div class="text-emerald-400 font-semibold">Slack Alerts</div>
+            <p class="mt-2 text-sm text-zinc-300">
+              Get notified the moment secrets show up — reduce time-to-response.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section id="how" class="max-w-6xl mx-auto px-6 py-14">
+        <h2 class="text-2xl font-semibold">How it Works</h2>
+        <ol
+          class="mt-4 space-y-3 text-sm text-zinc-300 list-decimal list-inside"
+        >
+          <li>
+            Connect GitHub (OAuth) or use a Personal Access Token (read-only).
+          </li>
+          <li>Paste any repository URL and select a branch.</li>
+          <li>We enumerate files via the GitHub API and scan in memory.</li>
+          <li>
+            Findings appear instantly. Optional Slack/email alerts on new leaks.
+          </li>
+        </ol>
+        <div class="mt-6">
+          <a
+            href="/ui"
+            class="inline-block px-5 py-3 rounded-xl bg-emerald-500 text-zinc-950 font-semibold hover:bg-emerald-400 transition"
+            >Open the App</a
+          >
+        </div>
+        <p class="mt-3 text-xs text-zinc-500">
+          Open-source. MIT licensed. Inspect or fork on GitHub.
+        </p>
+      </section>
+    </main>
+
+    <footer class="max-w-6xl mx-auto px-6 py-10 text-sm text-zinc-500">
+      <div
+        class="flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+      >
+        <div>© <span id="year"></span> Secrets Scanner — MIT License</div>
+        <div class="space-x-4">
+          <a href="/ui" class="hover:underline">Open App</a>
+          <a
+            href="https://github.com/AMOSFINDS/secrets-scanner"
+            target="_blank"
+            rel="noopener"
+            class="hover:underline"
+            >GitHub</a
+          >
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
