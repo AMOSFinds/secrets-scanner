@@ -156,3 +156,47 @@ Contribute to the next release
 
 Together we can make open-source security faster, simpler, and safer for everyone.
 
+##  Prevent Leaks with Pre-Commit
+
+Run locally (no server, no GitHub access needed):
+
+python -m app.cli --staged
+
+Option A — Simple git hook
+macOS/Linux: create .git/hooks/pre-commit:
+
+set -e
+python -m app.cli --staged
+Make it executable:
+chmod +x .git/hooks/pre-commit
+
+Windows (PowerShell): create .git/hooks/pre-commit.ps1:
+
+python -m app.cli --staged
+if ($LASTEXITCODE -ne 0) { exit 1 }
+The commit will fail (exit code 1) if any secrets are detected.
+
+Option B — Using the pre-commit framework
+Install and configure once for the repo:
+
+pip install pre-commit
+Create .pre-commit-config.yaml in the repo root:
+
+Copy code
+repos:
+  - repo: local
+    hooks:
+      - id: secrets-scan
+        name: secrets-scan
+        entry: python -m app.cli --staged
+        language: system
+        pass_filenames: false
+Then enable it:
+pre-commit install
+Now every git commit will run the scanner on staged files. Use --no-verify to bypass only if you absolutely must (not recommended).
+
+
+If you also added the console script, you can add this tiny note (optional):
+
+> If installed as a package:  
+> `secrets-scan --staged`  # instead of `python -m app.cli --staged`
