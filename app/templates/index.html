@@ -115,6 +115,47 @@
         </div>
       </section>
 
+      <section class="bg-gray-900 text-white py-16 px-6 text-center">
+        <h2 class="text-3xl font-bold mb-4">
+          🔐 Prevent Secrets from Ever Leaving Your Machine
+        </h2>
+        <p class="text-gray-300 max-w-2xl mx-auto mb-8">
+          Run Secrets Scanner locally before you push to GitHub — or set it up
+          as a pre-commit hook. Stop accidental API key leaks before they
+          happen.
+        </p>
+
+        <div
+          class="bg-gray-800 p-6 rounded-xl shadow-lg max-w-2xl mx-auto text-left"
+        >
+          <p class="text-sm text-gray-400 mb-2">Install the CLI:</p>
+          <pre
+            class="bg-black p-3 rounded text-green-400 overflow-x-auto text-sm"
+          >
+pip install secrets-scanner
+secrets-scan --staged
+    </pre
+          >
+
+          <p class="text-sm text-gray-400 mt-4 mb-2">
+            Or use directly (no install):
+          </p>
+          <pre
+            class="bg-black p-3 rounded text-green-400 overflow-x-auto text-sm"
+          >
+python -m app.cli --staged
+    </pre
+          >
+        </div>
+
+        <a
+          href="/ui"
+          class="inline-block mt-10 px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-lg font-medium transition"
+        >
+          Open Web Scanner
+        </a>
+      </section>
+
       <!-- Features -->
       <section id="features" class="max-w-6xl mx-auto px-6 py-14">
         <h2 class="text-2xl font-semibold">Why Secrets Scanner?</h2>

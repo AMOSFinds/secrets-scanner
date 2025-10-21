@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: secrets-scan
+        name: secrets-scan
+        entry: python -m app.cli --staged
+        language: system
+        pass_filenames: false
