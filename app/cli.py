@@ -50,6 +50,11 @@ def should_skip(path: Path, include: List[str], exclude: List[str]) -> bool:
         return True
     return False
 
+DEFAULT_EXCLUDES = [
+    "node_modules/**", "dist/**", "build/**", "**/*.min.js", "**/*.map",
+    "**/.git/**", "**/.venv/**", "**/__pycache__/**", "**/*.lock", "**/*.bin",
+]
+
 def iter_repo_files(root: Path, include: List[str], exclude: List[str]) -> Iterable[Path]:
     for dirpath, dirnames, filenames in os.walk(root):
         # skip .git dirs quickly
@@ -129,3 +134,16 @@ def main(argv: List[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+def load_config(root: Path) -> dict:
+    cfg = root / ".secrets-scanner.json"
+    if cfg.exists():
+        try:
+            return json.load(cfg.open("r", encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+def should_fail(findings, levels):
+    levels = {lvl.strip().upper() for lvl in levels.split(",")}
+    return any(f.severity.upper() in levels for f in findings)
