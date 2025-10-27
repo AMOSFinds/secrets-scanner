@@ -4,8 +4,8 @@ Fast, open-source tool to detect API keys, credentials, and other secrets inside
 
 ---
 
- ![Image Alt]([image_url](https://github.com/AMOSFinds/secrets-scanner/blob/main/git1.PNG?raw=true))
- ![Image Alt]([image_url](https://github.com/AMOSFinds/secrets-scanner/blob/main/git2.PNG?raw=true))
+ ![Image Alt](https://github.com/AMOSFinds/secrets-scanner/blob/main/git1.PNG?raw=true)
+ ![Image Alt](https://github.com/AMOSFinds/secrets-scanner/blob/main/git2.PNG?raw=true)
 ##  Overview
 
 **Secrets Scanner** is a lightweight, self-hostable solution for finding leaked secrets in your codebase.  
@@ -203,6 +203,7 @@ If you also added the console script, you can add this tiny note (optional):
 
 > If installed as a package:  
 > `secrets-scan --staged`  # instead of `python -m app.cli --staged`
+
 
 
 
