@@ -195,11 +195,11 @@ Then enable it:
 pre-commit install
 Now every git commit will run the scanner on staged files. Use --no-verify to bypass only if you absolutely must (not recommended).
 
-<img width="642" height="119" alt="image" src="https://github.com/user-attachments/assets/23ad4367-5d2b-4750-a4b5-c6239f8643a1" />
 
 
 If you also added the console script, you can add this tiny note (optional):
 
 > If installed as a package:  
 > `secrets-scan --staged`  # instead of `python -m app.cli --staged`
+
 
