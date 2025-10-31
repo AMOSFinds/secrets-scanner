@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from io import StringIO
+from .config import load_config, path_ignored, baseline_contains
 import csv, os, json, secrets, httpx
 
 
@@ -29,6 +30,8 @@ GITHUB_OAUTH_REDIRECT_URL = os.getenv("GITHUB_OAUTH_REDIRECT_URL")
 
 GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+
+cfg = load_config()
 
 async def require_api_key(
     request: Request,
@@ -111,6 +114,15 @@ async def scan_repo(req: ScanRequest, background_tasks: BackgroundTasks = None):
     start = (page - 1) * page_size
     end = start + page_size
     paged = findings[start:end]
+
+    for path, url in files:
+        if path_ignored(path, cfg["ignore_patterns"]):
+            continue
+    ...
+    for f in scan_text(path, content):
+        if baseline_contains(cfg["baseline"], f):
+            continue
+        findings.append(f)
 
     return ScanResult(
         repo_url=req.repo_url,
