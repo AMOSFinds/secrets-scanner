@@ -68,8 +68,6 @@ app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
 def landing(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-
-@app.get("/health")
 @app.head("/health")
 @app.get("/health")
 def health():
