@@ -8,7 +8,8 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from io import StringIO
 from .config import load_config, path_ignored, baseline_contains
-import csv, os, json, secrets, httpx
+import csv, os, json, secrets, httpx, time
+from datetime import datetime, timezone
 
 
 from typing import List, Tuple
@@ -21,7 +22,11 @@ from urllib.parse import urlencode
 
 GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
 
+TEST_KEYS_JSON = os.getenv("TEST_KEYS_JSON")  # JSON string of {"keys":[{"key":..., "label":..., "expires":...}, ...]}
+TEST_KEYS_FILE = os.getenv("TEST_KEYS_FILE")  # path to a JSON file with the same structure
 API_KEY = os.getenv("API_KEY")
+
+_cached_keys: dict[str, float] = {}  # key -> expiry_ts (epoch seconds); empty = not loaded yet
 
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
@@ -33,16 +38,67 @@ GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 
 cfg = load_config()
 
+def _parse_iso(dt: str) -> float:
+    try:
+        return datetime.fromisoformat(dt.replace("Z","+00:00")).timestamp()
+    except Exception:
+        # if no expiry or bad format, treat as far future
+        return 1e12
+
+def _load_allowed_keys() -> dict[str, float]:
+    # priority: TEST_KEYS_JSON (env) > TEST_KEYS_FILE > none
+    data = None
+    if TEST_KEYS_JSON:
+        try:
+            data = json.loads(TEST_KEYS_JSON)
+        except Exception:
+            data = None
+    elif TEST_KEYS_FILE and os.path.exists(TEST_KEYS_FILE):
+        try:
+            with open(TEST_KEYS_FILE, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except Exception:
+            data = None
+    keys: dict[str, float] = {}
+    if isinstance(data, dict) and isinstance(data.get("keys"), list):
+        for item in data["keys"]:
+            k = item.get("key")
+            exp = _parse_iso(item.get("expires") or "2099-12-31T00:00:00Z")
+            if k:
+                keys[k] = exp
+    return keys
+
+def _ensure_keys_loaded():
+    # lazy-load once per process
+    global _cached_keys
+    if not _cached_keys:
+        _cached_keys = _load_allowed_keys()
+
+def _is_key_allowed(k: str | None) -> bool:
+    if not k:
+        return False
+    # single API key still valid
+    if API_KEY and k == API_KEY:
+        return True
+    _ensure_keys_loaded()
+    exp = _cached_keys.get(k)
+    return bool(exp and exp > time.time())
+
 async def require_api_key(
     request: Request,
     x_api_key: str | None = Header(default=None),
 ):
-    # If no API_KEY set, protection is off
-    if not API_KEY:
+    # If no keys configured at all, protection is off
+    has_any_protection = bool(API_KEY or TEST_KEYS_JSON or TEST_KEYS_FILE)
+    if not has_any_protection:
         return
+
     supplied = x_api_key or request.cookies.get("api_key") or request.query_params.get("key")
-    if supplied != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+    if _is_key_allowed(supplied):
+        return
+
+    raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 def dedupe_findings(items: List[Finding]) -> List[Finding]:
     seen: set[Tuple[str, int, str, str]] = set()
