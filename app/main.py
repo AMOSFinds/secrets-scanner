@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import List, Tuple
 from .models import ScanRequest, ScanResult, Finding
 from .scanner import scan_text
-from .utils_github import list_repo_tree, fetch_file, verify_github_signature, changed_paths_from_push, fetch_file_at_ref
+from .utils_github import list_repo_tree, fetch_file, verify_github_signature, changed_paths_from_push, fetch_file_at_ref, fetch_repo_config
 from starlette.middleware.sessions import SessionMiddleware
 from urllib.parse import urlencode
 
@@ -144,6 +144,11 @@ async def scan_repo(req: ScanRequest, background_tasks: BackgroundTasks = None):
         owner, repo = parts[0], parts[1]
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid repo_url. Use https://github.com/owner/repo")
+    
+    # NEW: fetch per-repo config from the branch (ignore patterns, baseline, etc.)
+    cfg = await fetch_repo_config(owner, repo, req.branch, token)
+    ignore_patterns = cfg.get("ignore_patterns", [])
+    baseline = cfg.get("baseline", {})
 
     
 
@@ -153,11 +158,21 @@ async def scan_repo(req: ScanRequest, background_tasks: BackgroundTasks = None):
     findings = []
     scanned = 0
     for path, url in files:
+
+        if ignore_patterns and path_ignored(path, ignore_patterns):
+            continue
+
         try:
             content = await fetch_file(url, token=token)
         except Exception:
             continue
         scanned += 1
+        # add findings for this file
+        for f in scan_text(path, content):
+            # apply baseline filtering
+            if baseline and baseline_contains(baseline, f):
+                continue
+            findings.append(f)
         findings.extend(scan_text(path, content))
 
     # Optional dedupe

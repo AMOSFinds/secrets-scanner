@@ -1,12 +1,13 @@
-#  Secrets Scanner
+# Secrets Scanner
 
 Fast, open-source tool to detect API keys, credentials, and other secrets inside GitHub repositories — before they cause damage.
 
 ---
 
- ![Image Alt](https://github.com/AMOSFinds/secrets-scanner/blob/main/git1.PNG?raw=true)
- ![Image Alt](https://github.com/AMOSFinds/secrets-scanner/blob/main/git2.PNG?raw=true)
-##  Overview
+![Image Alt](https://github.com/AMOSFinds/secrets-scanner/blob/main/git1.PNG?raw=true)
+![Image Alt](https://github.com/AMOSFinds/secrets-scanner/blob/main/git2.PNG?raw=true)
+
+## Overview
 
 **Secrets Scanner** is a lightweight, self-hostable solution for finding leaked secrets in your codebase.  
 Unlike heavy enterprise tools, it runs instantly, stores nothing, and can be deployed anywhere — including your own Render instance.
@@ -15,19 +16,19 @@ Built for developers, security engineers, and DevOps teams who want **visibility
 
 ---
 
-##  Features
+## Features
 
--  Scan any **public or private GitHub repository**
--  Detect API keys, tokens, passwords, and high-entropy strings
--  Asynchronous scanning for speed and scale
--  Optional **Slack alerts** for new leaks
--  No data storage — all scans run in memory
--  Easily deployable via Docker or Render
--  GitHub OAuth login for private repo access
+- Scan any **public or private GitHub repository**
+- Detect API keys, tokens, passwords, and high-entropy strings
+- Asynchronous scanning for speed and scale
+- Optional **Slack alerts** for new leaks
+- No data storage — all scans run in memory
+- Easily deployable via Docker or Render
+- GitHub OAuth login for private repo access
 
 ---
 
-##  Quick Start
+## Quick Start
 
 ### 1. Clone the repository
 
@@ -70,7 +71,7 @@ Add your environment variables under Environment Variables
 
 Click Deploy
 
-Your app will be live within minutes 
+Your app will be live within minutes
 Example demo: https://secrets-scanner-jlw2.onrender.com/ui
 
  Architecture
@@ -201,9 +202,14 @@ Now every git commit will run the scanner on staged files. Use --no-verify to by
 
 If you also added the console script, you can add this tiny note (optional):
 
-> If installed as a package:  
+> If installed as a package:
 > `secrets-scan --staged`  # instead of `python -m app.cli --staged`
 
+##  Config
+
+The web scanner reads .secrets-scanner.json from the repo root (same format as the CLI) and applies ignore_patterns and baseline during scans.
 
 
 
+
+```

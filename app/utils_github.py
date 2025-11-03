@@ -1,4 +1,4 @@
-import httpx, hmac, hashlib, os, asyncio
+import httpx, hmac, hashlib, os, asyncio, json
 from typing import List, Tuple, Dict, Any
 from .ratelimit import limiter, sema
 
@@ -127,3 +127,16 @@ async def fetch_file_at_ref(owner: str, repo: str, ref: str, path: str, token: s
         if r.status_code == 200:
             return r.text
     return None
+
+async def fetch_repo_config(owner: str, repo: str, branch: str, token: str | None = None) -> dict:
+    """
+    Tries to read `.secrets-scanner.json` from the repo root at the given branch/ref.
+    Returns {} if missing or invalid.
+    """
+    text = await fetch_file_at_ref(owner, repo, branch, ".secrets-scanner.json", token)
+    if not text:
+        return {}
+    try:
+        return json.loads(text)
+    except Exception:
+        return {}
