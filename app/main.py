@@ -7,14 +7,14 @@ from pathlib import Path
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from io import StringIO
-from .config import load_config, path_ignored, baseline_contains
+from .config import load_config, path_ignored, baseline_contains, load_policy
 import csv, os, json, secrets, httpx, time
 from datetime import datetime, timezone
 
 
 from typing import List, Tuple
 from .models import ScanRequest, ScanResult, Finding
-from .scanner import scan_text
+from .scanner import scan_text, set_scanner_policy
 from .utils_github import list_repo_tree, fetch_file, verify_github_signature, changed_paths_from_push, fetch_file_at_ref, fetch_repo_config
 from starlette.middleware.sessions import SessionMiddleware
 from urllib.parse import urlencode
@@ -37,6 +37,7 @@ GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 
 cfg = load_config()
+set_scanner_policy(load_policy())
 
 def _parse_iso(dt: str) -> float:
     try:

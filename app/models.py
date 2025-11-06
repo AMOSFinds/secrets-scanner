@@ -16,12 +16,12 @@ class ScanRequest(BaseModel):
 
 class Finding(BaseModel):
     file_path: str
-    line: int
-    snippet: str
+    line: int | None = None
+    snippet: str | None = None
     pattern: str
-    entropy: float
+    entropy: float | None = None
     severity: str
-    recommendation: str
+    recommendation: str | None = None 
 
 
 class ScanResult(BaseModel):

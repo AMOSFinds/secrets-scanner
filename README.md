@@ -32,7 +32,7 @@ Built for developers, security engineers, and DevOps teams who want **visibility
 
 ### 1. Clone the repository
 
-```bash
+````bash
 git clone https://github.com/<your-username>/secrets-scanner.git
 cd secrets-scanner
 
@@ -209,7 +209,19 @@ If you also added the console script, you can add this tiny note (optional):
 
 The web scanner reads .secrets-scanner.json from the repo root (same format as the CLI) and applies ignore_patterns and baseline during scans.
 
+### `.secrets-policy.json` (org rules)
+
+Place in repo root to tune scanning:
+
+```json
+{
+  "ignore": { "paths": ["tests/**"], "patterns": ["DUMMY_API_KEY=.*"] },
+  "forbid": { "patterns": ["AKIA[0-9A-Z]{16}"] },
+  "severity_overrides": { "JWT": "HIGH", "GENERIC_PASSWORD": "HIGH" },
+  "min_entropy": { "LOW": 3.5 },
+  "allow_env_names": ["DUMMY_API_KEY"]
+}
 
 
 
-```
+````

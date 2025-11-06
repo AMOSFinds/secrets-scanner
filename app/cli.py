@@ -2,7 +2,7 @@
 import argparse, os, sys, json, subprocess, fnmatch
 from pathlib import Path
 from typing import Iterable, List
-from .scanner import scan_text
+from .scanner import scan_text, set_scanner_policy
 from .models import Finding
 from .utils_github import RAW_SKIP_EXTS  # reuse your existing skip list
 from .config import (
@@ -10,6 +10,7 @@ from .config import (
     path_ignored,
     baseline_contains,
     finding_hash,
+    load_policy
 )
 
 DEFAULT_MAX_SIZE = 1024 * 1024  # 1 MB per file
@@ -25,6 +26,9 @@ def _supports_unicode() -> bool:
 
 OK_MARK = "✅" if _supports_unicode() else "[OK]"
 ALERT_MARK = "❗" if _supports_unicode() else "[!]"
+
+policy = load_policy()
+set_scanner_policy(policy)
 
 # ---------- file helpers ----------
 def is_probably_text(path: Path, chunk_size: int = 4096) -> bool:
