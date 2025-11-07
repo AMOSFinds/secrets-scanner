@@ -1,4 +1,4 @@
-# 🔐 Secrets Scanner
+#  Secrets Scanner
 
 **A fast, local-first, open-source secrets detection tool for developers, DevOps, and security teams.**  
 Detect API keys, credentials, JWTs, passwords, and high-entropy secrets *before* they ever reach GitHub.
@@ -255,3 +255,4 @@ Deployment: Docker / Render
 -GitHub Repo: https://github.com/AMOSFinds/secrets-scanner
 
 If this project helps you, please leave a ⭐ — it means a lot!
+
