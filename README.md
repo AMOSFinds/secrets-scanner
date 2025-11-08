@@ -42,7 +42,7 @@ Ideal for:
 
 #  What's New (v1.1.0 — Community Feedback Release)
 
-Huge improvements driven by feedback from **/r/devsecops**, **/r/selfhosted**, and senior AppSec engineers.
+Huge improvements driven by feedback from Reddit*, and AppSec engineers.
 
 ###  **Generic JWT & Password Detection**
 The scanner now detects:
@@ -250,9 +250,10 @@ Deployment: Docker / Render
 
  Links
 
--Live Demo: https://secrets-scanner-jlw2.onrender.com/ui
+-Live Demo: https://secrets-scanner-jlw2.onrender.com
 
 -GitHub Repo: https://github.com/AMOSFinds/secrets-scanner
 
 If this project helps you, please leave a ⭐ — it means a lot!
+
 
