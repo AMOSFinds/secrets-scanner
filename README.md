@@ -36,7 +36,23 @@ Ideal for:
 - bootstrapped teams  
 - privacy-critical teams  
 - students learning AppSec  
-- anyone who wants a *simple but powerful* secrets scanner  
+- anyone who wants a *simple but powerful* secrets scanner
+
+ **Why use it vs alternatives?**
+- **Local-first**: works without sending code to any third party.
+- **Fast feedback**: blocks commits with clear, fixable messages.
+- **Customizable**: `.secrets-policy.json` to tune rules & reduce FPs.
+- **Generic patterns**: detects JWTs, API tokens, high-entropy keys — not just provider prefixes.
+
+**Ways to run**
+- **Pre-commit**: `python -m app.cli --staged`
+- **CI** (SARIF for GitHub code scanning): `python -m app.cli --all --sarif results.sarif`
+- **Web UI (self-host)**: Docker/Render and scan public/private GitHub repos via OAuth.
+
+**Links**
+- GitHub: https://github.com/AMOSFinds/secrets-scanner
+- Demo UI: https://secrets-scanner-jlw2.onrender.com/ui
+- Release notes: https://github.com/AMOSFinds/secrets-scanner/releases 
 
 ---
 
@@ -254,6 +270,6 @@ Deployment: Docker / Render
 
 -GitHub Repo: https://github.com/AMOSFinds/secrets-scanner
 
-If this project helps you, please leave a ⭐ — it means a lot!
+
 
 
