@@ -52,7 +52,13 @@ Ideal for:
 **Links**
 - GitHub: https://github.com/AMOSFinds/secrets-scanner
 - Demo UI: https://secrets-scanner-jlw2.onrender.com/ui
-- Release notes: https://github.com/AMOSFinds/secrets-scanner/releases 
+- Release notes: https://github.com/AMOSFinds/secrets-scanner/releases
+
+ ### Limitations
+- Not a silver bullet: if a key is already pushed, treat it as compromised.
+- JWT rule is context-aware but conservative; tune with `.secrets-policy.json`.
+- Provider-specific detectors are intentionally light; policy lets you add your own.
+
 
 ---
 
@@ -269,6 +275,7 @@ Deployment: Docker / Render
 -Live Demo: https://secrets-scanner-jlw2.onrender.com
 
 -GitHub Repo: https://github.com/AMOSFinds/secrets-scanner
+
 
 
 
