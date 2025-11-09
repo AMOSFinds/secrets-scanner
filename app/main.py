@@ -8,8 +8,9 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from io import StringIO
 from .config import load_config, path_ignored, baseline_contains, load_policy
-import csv, os, json, secrets, httpx, time
+import csv, os, json, secrets, httpx, time, traceback
 from datetime import datetime, timezone
+from httpx import HTTPStatusError, RequestError
 
 
 from typing import List, Tuple
@@ -208,10 +209,51 @@ async def scan_repo(req: ScanRequest, background_tasks: BackgroundTasks = None):
 
 
 @app.post("/scan-ui", response_class=HTMLResponse)
-async def scan_ui(request: Request, repo_url: str = Form(...), page: int = Form(1), page_size: int = Form(100), branch: str = Form("main"), _: None = Depends(require_api_key)):
+async def scan_ui(
+    request: Request,
+    repo_url: str = Form(...),
+    page: int = Form(1),
+    page_size: int = Form(100),
+    branch: str = Form("main"),
+    _: None = Depends(require_api_key),
+):
     gh_token = request.session.get("gh_token")
-    res = await scan_repo(ScanRequest(repo_url=repo_url, branch=branch, page=page, page_size=page_size, github_token=gh_token))
-    return templates.TemplateResponse("results.html", {"request": request, "result": res})
+
+    try:
+        res = await scan_repo(
+            ScanRequest(
+                repo_url=repo_url,
+                branch=branch,
+                page=page,
+                page_size=page_size,
+                github_token=gh_token,
+            )
+        )
+        return templates.TemplateResponse(
+            "results.html",
+            {"request": request, "result": res, "error": None},
+        )
+
+    except Exception as e:
+        # Optional: log the traceback to backend logs
+        print("SCAN-UI ERROR:", e)
+        traceback.print_exc()
+
+        # Pass a *friendly* message to the template
+        error_msg = (
+            f"Unable to scan repository: {str(e)}. "
+            "This may be due to a private repo, invalid URL, missing permissions, "
+            "or GitHub rate limiting."
+        )
+
+        return templates.TemplateResponse(
+            "results.html",
+            {
+                "request": request,
+                "result": None,
+                "error": error_msg,
+            },
+        )
 
 
 @app.post("/scan.csv")
@@ -342,3 +384,24 @@ def login(key: str, response: Response):
     # 7-day cookie; HttpOnly so JS can’t read it
     resp.set_cookie("api_key", key, httponly=True, samesite="lax", max_age=60*60*24*7)
     return resp
+
+@app.exception_handler(HTTPStatusError)
+async def httpx_status_handler(request, exc):
+    detail = "GitHub API error."
+    if exc.response.status_code == 403:
+        detail = "GitHub rate limit. Connect GitHub (OAuth) or supply a token."
+    elif exc.response.status_code == 404:
+        detail = "Repo or branch not found. Double-check the URL/branch."
+    return templates.TemplateResponse(
+        "error.html",
+        {"request": request, "detail": detail},
+        status_code=exc.response.status_code,
+    )
+
+@app.exception_handler(RequestError)
+async def httpx_request_handler(request, exc):
+    return templates.TemplateResponse(
+        "error.html",
+        {"request": request, "detail": "Network error. Please retry."},
+        status_code=502,
+    )

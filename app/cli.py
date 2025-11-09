@@ -24,8 +24,11 @@ def _supports_unicode() -> bool:
     enc = (getattr(sys.stdout, "encoding", "") or "").lower()
     return "utf" in enc
 
-OK_MARK = "✅" if _supports_unicode() else "[OK]"
-ALERT_MARK = "❗" if _supports_unicode() else "[!]"
+# OK_MARK = "✅" if _supports_unicode() else "[OK]"
+# ALERT_MARK = "❗" if _supports_unicode() else "[!]"
+
+OK_MARK = "[OK]"
+ALERT_MARK = "[!]"
 
 policy = load_policy()
 set_scanner_policy(policy)
