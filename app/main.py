@@ -1,38 +1,50 @@
+# app/main.py
 from dotenv import load_dotenv
 load_dotenv()
-from fastapi import FastAPI, HTTPException, Form, Request, BackgroundTasks, Header, Depends, Response
-from fastapi.responses import RedirectResponse
-from .notify import send_slack, send_email
+
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Form,
+    Request,
+    Header,
+    Depends,
+    Response,
+)
+from fastapi.responses import RedirectResponse, HTMLResponse, StreamingResponse, JSONResponse
 from pathlib import Path
-from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from io import StringIO
+from .payments import init_transaction, verify_transaction, assign_key_to_email
+from .notify import send_slack, send_email
 from .config import load_config, path_ignored, baseline_contains, load_policy
-import csv, os, json, secrets, httpx, time, traceback
-from datetime import datetime, timezone
-from httpx import HTTPStatusError, RequestError
-
-
-from typing import List, Tuple
 from .models import ScanRequest, ScanResult, Finding
 from .scanner import scan_text, set_scanner_policy
-from .utils_github import list_repo_tree, fetch_file, verify_github_signature, changed_paths_from_push, fetch_file_at_ref, fetch_repo_config
+from .utils_github import (
+    list_repo_tree,
+    fetch_file,
+    verify_github_signature,
+    changed_paths_from_push,
+    fetch_file_at_ref,
+    fetch_repo_config,
+)
 from starlette.middleware.sessions import SessionMiddleware
 from urllib.parse import urlencode
 
+import csv, os, json, secrets, httpx, time, traceback
+from datetime import datetime
+from httpx import HTTPStatusError, RequestError
+from typing import List, Tuple
 
+# --- env + globals ---
 GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
 
-TEST_KEYS_JSON = os.getenv("TEST_KEYS_JSON")  # JSON string of {"keys":[{"key":..., "label":..., "expires":...}, ...]}
-TEST_KEYS_FILE = os.getenv("TEST_KEYS_FILE")  # path to a JSON file with the same structure
+TEST_KEYS_JSON = os.getenv("TEST_KEYS_JSON")
+TEST_KEYS_FILE = os.getenv("TEST_KEYS_FILE")
 API_KEY = os.getenv("API_KEY")
-
-_cached_keys: dict[str, float] = {}  # key -> expiry_ts (epoch seconds); empty = not loaded yet
 
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
 GITHUB_OAUTH_REDIRECT_URL = os.getenv("GITHUB_OAUTH_REDIRECT_URL")
-
 
 GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
@@ -40,15 +52,57 @@ GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 cfg = load_config()
 set_scanner_policy(load_policy())
 
+# --- Pro users store (JSON file) ---
+DATA_FILE = Path(__file__).parent / "data" / "pro_users.json"
+DATA_FILE.parent.mkdir(exist_ok=True)
+if not DATA_FILE.exists():
+    DATA_FILE.write_text(json.dumps({"users": {}}, indent=2))
+
+
+def load_users() -> dict:
+    return json.loads(DATA_FILE.read_text())
+
+
+def save_users(d: dict) -> None:
+    DATA_FILE.write_text(json.dumps(d, indent=2))
+
+
+def find_pro_key_record(key: str) -> dict | None:
+    try:
+        db = load_users()
+        for email, rec in (db.get("users") or {}).items():
+            if rec.get("api_key") == key:
+                return rec
+    except Exception:
+        pass
+    return None
+
+
+def pro_key_valid_now(key: str) -> bool:
+    rec = find_pro_key_record(key)
+    if not rec:
+        return False
+    exp = rec.get("expires_at")
+    if not exp:
+        return True
+    try:
+        ts = datetime.fromisoformat(exp.replace("Z", "+00:00")).timestamp()
+        return ts > time.time()
+    except Exception:
+        return False
+
+
+_cached_keys: dict[str, float] = {}
+
+
 def _parse_iso(dt: str) -> float:
     try:
-        return datetime.fromisoformat(dt.replace("Z","+00:00")).timestamp()
+        return datetime.fromisoformat(dt.replace("Z", "+00:00")).timestamp()
     except Exception:
-        # if no expiry or bad format, treat as far future
         return 1e12
 
+
 def _load_allowed_keys() -> dict[str, float]:
-    # priority: TEST_KEYS_JSON (env) > TEST_KEYS_FILE > none
     data = None
     if TEST_KEYS_JSON:
         try:
@@ -61,6 +115,7 @@ def _load_allowed_keys() -> dict[str, float]:
                 data = json.load(fh)
         except Exception:
             data = None
+
     keys: dict[str, float] = {}
     if isinstance(data, dict) and isinstance(data.get("keys"), list):
         for item in data["keys"]:
@@ -70,37 +125,47 @@ def _load_allowed_keys() -> dict[str, float]:
                 keys[k] = exp
     return keys
 
+
 def _ensure_keys_loaded():
-    # lazy-load once per process
     global _cached_keys
     if not _cached_keys:
         _cached_keys = _load_allowed_keys()
 
+
 def _is_key_allowed(k: str | None) -> bool:
     if not k:
         return False
-    # single API key still valid
     if API_KEY and k == API_KEY:
         return True
     _ensure_keys_loaded()
     exp = _cached_keys.get(k)
-    return bool(exp and exp > time.time())
+    if exp and exp > time.time():
+        return True
+    # Also allow Pro keys from pro_users.json
+    if pro_key_valid_now(k):
+        return True
+    return False
+
 
 async def require_api_key(
     request: Request,
     x_api_key: str | None = Header(default=None),
 ):
-    # If no keys configured at all, protection is off
     has_any_protection = bool(API_KEY or TEST_KEYS_JSON or TEST_KEYS_FILE)
     if not has_any_protection:
         return
 
-    supplied = x_api_key or request.cookies.get("api_key") or request.query_params.get("key")
+    supplied = (
+        x_api_key
+        or request.cookies.get("api_key")
+        or request.query_params.get("key")
+    )
 
     if _is_key_allowed(supplied):
         return
 
     raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
 
 def dedupe_findings(items: List[Finding]) -> List[Finding]:
     seen: set[Tuple[str, int, str, str]] = set()
@@ -113,18 +178,27 @@ def dedupe_findings(items: List[Finding]) -> List[Finding]:
         out.append(f)
     return out
 
+async def require_pro_api_key(
+    request: Request,
+    x_api_key: str | None = Header(default=None),
+):
+    supplied = x_api_key or request.cookies.get("api_key") or request.query_params.get("key")
+    if supplied and pro_key_valid_now(supplied):
+        return
+    raise HTTPException(status_code=402, detail="Pro key required")
 
 app = FastAPI(title="Secrets Scanner MVP")
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret")
 app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
-# templates = Jinja2Templates(directory="app/templates")
 
 
+# --- basic routes ---
 @app.get("/")
 def landing(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.head("/health")
 @app.get("/health")
@@ -133,70 +207,63 @@ def health():
 
 
 @app.get("/ui", response_class=HTMLResponse)
-# def ui_form(request: Request):
 async def ui_form(request: Request, _: None = Depends(require_api_key)):
     return templates.TemplateResponse("base.html", {"request": request})
 
 
+# --- core scanning ---
 @app.post("/scan", response_model=ScanResult)
-async def scan_repo(req: ScanRequest, background_tasks: BackgroundTasks = None):
-    # Parse owner/repo
+async def scan_repo(req: ScanRequest):
     try:
         parts = req.repo_url.rstrip("/").split("github.com/")[1].split("/")
         owner, repo = parts[0], parts[1]
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid repo_url. Use https://github.com/owner/repo")
-    
-    # NEW: fetch per-repo config from the branch (ignore patterns, baseline, etc.)
-    cfg = await fetch_repo_config(owner, repo, req.branch, token)
-    ignore_patterns = cfg.get("ignore_patterns", [])
-    baseline = cfg.get("baseline", {})
-
-    
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid repo_url. Use https://github.com/owner/repo",
+        )
 
     token = req.github_token or os.getenv("GITHUB_PAT")
-    files = await list_repo_tree(owner, repo, branch=req.branch, token=token, max_files=getattr(req, "max_files", None))
 
-    findings = []
+    cfg = await fetch_repo_config(owner, repo, req.branch, token)
+    ignore_patterns = cfg.get("ignore_patterns", []) or []
+    baseline = cfg.get("baseline", {}) or {}
+
+    files = await list_repo_tree(
+        owner,
+        repo,
+        branch=req.branch,
+        token=token,
+        max_files=getattr(req, "max_files", None),
+    )
+
+    findings: list[Finding] = []
     scanned = 0
-    for path, url in files:
 
+    for path, url in files:
         if ignore_patterns and path_ignored(path, ignore_patterns):
             continue
-
         try:
             content = await fetch_file(url, token=token)
         except Exception:
             continue
+
         scanned += 1
-        # add findings for this file
+
         for f in scan_text(path, content):
-            # apply baseline filtering
             if baseline and baseline_contains(baseline, f):
                 continue
             findings.append(f)
-        findings.extend(scan_text(path, content))
 
-    # Optional dedupe
     if "dedupe_findings" in globals():
         findings = dedupe_findings(findings)
 
-    # Pagination
     total = len(findings)
     page = max(1, getattr(req, "page", 1))
     page_size = max(1, min(getattr(req, "page_size", 100), 1000))
     start = (page - 1) * page_size
     end = start + page_size
     paged = findings[start:end]
-
-    for path, url in files:
-        if path_ignored(path, cfg["ignore_patterns"]):
-            continue
-    ...
-    for f in scan_text(path, content):
-        if baseline_contains(cfg["baseline"], f):
-            continue
-        findings.append(f)
 
     return ScanResult(
         repo_url=req.repo_url,
@@ -235,11 +302,9 @@ async def scan_ui(
         )
 
     except Exception as e:
-        # Optional: log the traceback to backend logs
         print("SCAN-UI ERROR:", e)
         traceback.print_exc()
 
-        # Pass a *friendly* message to the template
         error_msg = (
             f"Unable to scan repository: {str(e)}. "
             "This may be due to a private repo, invalid URL, missing permissions, "
@@ -256,49 +321,62 @@ async def scan_ui(
         )
 
 
+# --- CSV download (unchanged) ---
 @app.post("/scan.csv")
 async def scan_csv_form(
     repo_url: str = Form(...),
     branch: str = Form("main"),
+    _: None = Depends(require_pro_api_key),
 ):
-    # Reuse the JSON route logic under the hood
     res: ScanResult = await scan_repo(ScanRequest(repo_url=repo_url, branch=branch))
 
-    # Stream CSV
     from io import StringIO
-    import csv
+
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow(["file_path", "line", "pattern", "entropy", "severity", "snippet"])
+    writer.writerow(
+        ["file_path", "line", "pattern", "entropy", "severity", "snippet"]
+    )
     for f in res.findings:
-        writer.writerow([f.file_path, f.line, f.pattern, f.entropy, f.severity, f.snippet])
+        writer.writerow(
+            [f.file_path, f.line, f.pattern, f.entropy, f.severity, f.snippet]
+        )
     output.seek(0)
 
     headers = {"Content-Disposition": "attachment; filename=findings.csv"}
     return StreamingResponse(output, media_type="text/csv", headers=headers)
 
-@app.post("/webhook/github")
-async def github_webhook(request: Request, x_hub_signature_256: str | None = Header(default=None)):
-    body = await request.body()
-    if not await verify_github_signature(body, x_hub_signature_256, GITHUB_WEBHOOK_SECRET):
-        raise HTTPException(status_code=401, detail="Invalid signature")
 
+# --- GitHub webhook (unchanged) ---
+
+# --- GitHub webhook ---
+
+
+@app.post("/webhook/github")
+async def github_webhook(
+    request: Request, x_hub_signature_256: str | None = Header(default=None)
+):
+    body = await request.body()
+    if not await verify_github_signature(
+        body, x_hub_signature_256, GITHUB_WEBHOOK_SECRET
+    ):
+        raise HTTPException(status_code=401, detail="Invalid signature")
 
     payload = json.loads(body)
     if payload.get("hook", {}).get("type") == "Repository":
-        # ping events etc.
         return {"ok": True}
 
-
-    owner = payload.get("repository", {}).get("owner", {}).get("name") or payload.get("repository", {}).get("owner", {}).get("login")
+    owner = (
+        payload.get("repository", {}).get("owner", {}).get("name")
+        or payload.get("repository", {}).get("owner", {}).get("login")
+    )
     repo = payload.get("repository", {}).get("name")
-    after = payload.get("after") # commit SHA
+    after = payload.get("after")
     if not (owner and repo and after):
         raise HTTPException(status_code=400, detail="Missing repo/after in payload")
 
-
     paths = changed_paths_from_push(payload)
-    findings = []
+    findings: List[Finding] = []
     scanned = 0
     for p in paths:
         content = await fetch_file_at_ref(owner, repo, after, p)
@@ -307,32 +385,55 @@ async def github_webhook(request: Request, x_hub_signature_256: str | None = Hea
         scanned += 1
         findings.extend(scan_text(p, content))
 
+    findings = dedupe_findings(findings) if "dedupe_findings" in globals() else findings
 
-    findings = dedupe_findings(findings) if 'dedupe_findings' in globals() else findings
-
-
-    # alert if needed
     if findings:
-        # repo URL
         repo_url = f"https://github.com/{owner}/{repo}"
         await send_slack(repo_url, findings)
         await send_email(repo_url, findings)
 
-
     return {"ok": True, "scanned_files": scanned, "findings": len(findings)}
+
+
+# --- Access / API key login ---
 
 
 @app.get("/access", response_class=HTMLResponse)
 def access_form(request: Request):
     return templates.TemplateResponse("access.html", {"request": request})
 
+
 @app.post("/access")
 def access_submit(key: str = Form(...)):
     if not API_KEY or key != API_KEY:
         raise HTTPException(status_code=401, detail="Bad key")
     resp = RedirectResponse(url="/ui", status_code=302)
-    resp.set_cookie("api_key", key, httponly=True, samesite="lax", max_age=60*60*24*7)
+    resp.set_cookie(
+        "api_key", key, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7
+    )
     return resp
+
+
+@app.get("/login")
+def login(key: str, response: Response):
+    # Accept either the master API_KEY or any valid Pro key
+    if not _is_key_allowed(key):
+        raise HTTPException(status_code=401, detail="Bad key")
+
+    resp = RedirectResponse(url="/ui", status_code=302)
+    # 7-day cookie; HttpOnly so JS can’t read it
+    resp.set_cookie(
+        "api_key",
+        key,
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7,
+    )
+    return resp
+
+
+# --- GitHub OAuth for private repos ---
+
 
 @app.get("/auth/github/login")
 async def github_login(request: Request):
@@ -343,7 +444,7 @@ async def github_login(request: Request):
     params = {
         "client_id": GITHUB_CLIENT_ID,
         "redirect_uri": GITHUB_OAUTH_REDIRECT_URL,
-        "scope": "repo", # access to private repos for reading
+        "scope": "repo",
         "state": state,
         "allow_signup": "false",
     }
@@ -352,7 +453,9 @@ async def github_login(request: Request):
 
 
 @app.get("/auth/github/callback")
-async def github_callback(request: Request, code: str | None = None, state: str | None = None):
+async def github_callback(
+    request: Request, code: str | None = None, state: str | None = None
+):
     if not (code and state):
         raise HTTPException(status_code=400, detail="Missing code/state")
     expected = request.session.get("oauth_state")
@@ -361,29 +464,28 @@ async def github_callback(request: Request, code: str | None = None, state: str 
     async with httpx.AsyncClient(timeout=20) as client:
         headers = {"Accept": "application/json"}
         data = {
-        "client_id": GITHUB_CLIENT_ID,
-        "client_secret": GITHUB_CLIENT_SECRET,
-        "code": code,
-        "redirect_uri": GITHUB_OAUTH_REDIRECT_URL,
-        "state": state,
+            "client_id": GITHUB_CLIENT_ID,
+            "client_secret": GITHUB_CLIENT_SECRET,
+            "code": code,
+            "redirect_uri": GITHUB_OAUTH_REDIRECT_URL,
+            "state": state,
         }
         r = await client.post(GITHUB_TOKEN_URL, data=data, headers=headers)
         r.raise_for_status()
         token = r.json().get("access_token")
         if not token:
-            raise HTTPException(status_code=400, detail="Failed to obtain access token")
+            raise HTTPException(
+                status_code=400, detail="Failed to obtain access token"
+            )
         request.session["gh_token"] = token
-    # simple success page
-    return HTMLResponse("<h1>GitHub connected.</h1><p>You can now scan private repos.</p><p><a href='/ui'>Back to UI</a></p>")
+    return HTMLResponse(
+        "<h1>GitHub connected.</h1><p>You can now scan private repos.</p>"
+        "<p><a href='/ui'>Back to UI</a></p>"
+    )
 
-@app.get("/login")
-def login(key: str, response: Response):
-    if not API_KEY or key != API_KEY:
-        raise HTTPException(status_code=401, detail="Bad key")
-    resp = RedirectResponse(url="/ui", status_code=302)
-    # 7-day cookie; HttpOnly so JS can’t read it
-    resp.set_cookie("api_key", key, httponly=True, samesite="lax", max_age=60*60*24*7)
-    return resp
+
+# --- Exception handlers for GitHub errors ---
+
 
 @app.exception_handler(HTTPStatusError)
 async def httpx_status_handler(request, exc):
@@ -398,10 +500,62 @@ async def httpx_status_handler(request, exc):
         status_code=exc.response.status_code,
     )
 
+
 @app.exception_handler(RequestError)
 async def httpx_request_handler(request, exc):
     return templates.TemplateResponse(
         "error.html",
         {"request": request, "detail": "Network error. Please retry."},
         status_code=502,
+    )
+
+
+# --- Pro checkout + callback ---
+@app.get("/pro", response_class=HTMLResponse)
+async def pro_page(request: Request):
+    price_cents = int(os.getenv("PRO_PRICE_CENTS", "10000"))
+    price_human = f"R{price_cents/100:.2f}"
+    approx_usd = f"{price_cents/100/18:.2f}"  # assuming ~R18 = $1
+    return templates.TemplateResponse(
+        "pro.html", {"request": request, "price_human": price_human, "approx_usd": approx_usd}
+    )
+
+
+@app.post("/pro/checkout")
+async def pro_checkout(email: str = Form(...)):
+    data = await init_transaction(email=email)
+    return RedirectResponse(url=data["authorization_url"], status_code=302)
+
+
+@app.get("/pro/callback", response_class=HTMLResponse)
+async def pro_callback(request: Request, reference: str | None = None):
+    if not reference:
+        raise HTTPException(status_code=400, detail="Missing reference")
+    tx = await verify_transaction(reference)
+    status = tx.get("status")
+    if status != "success":
+        return HTMLResponse("<h1>Payment not successful.</h1>", status_code=400)
+
+    email = (tx.get("customer") or {}).get("email") or "unknown@example.com"
+
+    key = assign_key_to_email(email)
+    if not key:
+        return HTMLResponse(
+            "<h1>Payment ok, but no keys available. Please contact support.</h1>",
+            status_code=500,
+        )
+
+    # Persist to pro_users.json so the API key is recognised later
+    db = load_users()
+    db.setdefault("users", {})
+    db["users"][email] = {
+        "api_key": key.get("key"),
+        "label": key.get("label", ""),
+        "expires_at": key.get("expires"),
+    }
+    save_users(db)
+
+    return templates.TemplateResponse(
+        "pro_success.html",
+        {"request": request, "key": key},
     )

@@ -1,0 +1,9 @@
+{
+  "users": {
+    "amogetswe.mashele@gmail.com": {
+      "api_key": "pro-key-01-TEST",
+      "label": "pro-01",
+      "expires_at": "2099-12-31T00:00:00Z"
+    }
+  }
+}

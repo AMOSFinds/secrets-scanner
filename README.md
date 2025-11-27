@@ -1,7 +1,7 @@
-#  Secrets Scanner
+# Secrets Scanner
 
 **A fast, local-first, open-source secrets detection tool for developers, DevOps, and security teams.**  
-Detect API keys, credentials, JWTs, passwords, and high-entropy secrets *before* they ever reach GitHub.
+Detect API keys, credentials, JWTs, passwords, and high-entropy secrets _before_ they ever reach GitHub.
 
 <p align="left">
   <img src="https://img.shields.io/github/v/release/AMOSFinds/secrets-scanner" />
@@ -13,18 +13,18 @@ Detect API keys, credentials, JWTs, passwords, and high-entropy secrets *before*
 
 ---
 
-##  Screenshots
+## Screenshots
 
 ![UI Screenshot](https://github.com/AMOSFinds/secrets-scanner/blob/main/git1.PNG?raw=true)
 ![Scan Result](https://github.com/AMOSFinds/secrets-scanner/blob/main/git2.PNG?raw=true)
 
 ---
 
-#  Overview
+# Overview
 
 **Secrets Scanner** is a lightweight, pre-commit & CI-friendly tool for detecting leaked secrets in codebases.
 
- **Runs locally** — code never leaves your machine  
+**Runs locally** — code never leaves your machine  
  **Instant pre-commit scanning**  
  **Self-hostable web UI (Docker / Render)**  
  **Optional Slack alerts**  
@@ -32,41 +32,45 @@ Detect API keys, credentials, JWTs, passwords, and high-entropy secrets *before*
 
 Ideal for:
 
-- solo developers  
-- bootstrapped teams  
-- privacy-critical teams  
-- students learning AppSec  
-- anyone who wants a *simple but powerful* secrets scanner
+- solo developers
+- bootstrapped teams
+- privacy-critical teams
+- students learning AppSec
+- anyone who wants a _simple but powerful_ secrets scanner
 
- **Why use it vs alternatives?**
+  **Why use it vs alternatives?**
+
 - **Local-first**: works without sending code to any third party.
 - **Fast feedback**: blocks commits with clear, fixable messages.
 - **Customizable**: `.secrets-policy.json` to tune rules & reduce FPs.
 - **Generic patterns**: detects JWTs, API tokens, high-entropy keys — not just provider prefixes.
 
 **Ways to run**
+
 - **Pre-commit**: `python -m app.cli --staged`
 - **CI** (SARIF for GitHub code scanning): `python -m app.cli --all --sarif results.sarif`
 - **Web UI (self-host)**: Docker/Render and scan public/private GitHub repos via OAuth.
 
 **Links**
+
 - GitHub: https://github.com/AMOSFinds/secrets-scanner
 - Demo UI: https://secrets-scanner-jlw2.onrender.com/ui
 - Release notes: https://github.com/AMOSFinds/secrets-scanner/releases
 
- ### Limitations
+### Limitations
+
 - Not a silver bullet: if a key is already pushed, treat it as compromised.
 - JWT rule is context-aware but conservative; tune with `.secrets-policy.json`.
 - Provider-specific detectors are intentionally light; policy lets you add your own.
 
-
 ---
 
-#  What's New (v1.1.0 — Community Feedback Release)
+# What's New (v1.1.0 — Community Feedback Release)
 
-Huge improvements driven by feedback from Reddit*, and AppSec engineers.
+Huge improvements driven by feedback from Reddit\*, and AppSec engineers.
 
-###  **Generic JWT & Password Detection**
+### **Generic JWT & Password Detection**
+
 The scanner now detects:
 
 - JWTs (`header.payload.signature`)
@@ -77,7 +81,8 @@ The scanner now detects:
 
 > This closes the major gap highlighted by users who said most scanners “only detect provider-pattern secrets.”
 
-###  **`.secrets-policy.json` — Configurable Rules**
+### **`.secrets-policy.json` — Configurable Rules**
+
 New configuration file for org-level policies:
 
 ```json
@@ -276,7 +281,28 @@ Deployment: Docker / Render
 
 -GitHub Repo: https://github.com/AMOSFinds/secrets-scanner
 
+##  Pro: Paystack Checkout + API Keys
+
+This repo includes a simple Pro flow:
+
+- **Paystack** checkout (test or live keys)
+- Upon success, the app allocates a key from a pool (`PRO_KEYS_JSON`)
+- The user sees their key on `/pro/callback` and can log into the UI via `/login?key=...`
+
+
+### How users redeem
+1. Visit `/pro`, enter email → pay with Paystack
+2. On return, the app shows their **API key**
+3. Visit `/login?key=THEIR_KEY` once; browser cookie grants access to `/ui`
+
+Pricing: R100 (~$5–6 USD) paid via Paystack (supports international cards)
+
+### Free vs Pro
+
+Free: web UI, pre-commit, SARIF, policy config
+
+Pro: hosted UI + Pro API key, CSV export, higher limits (if you’ve set them)
 
 
 
-
+```

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Pro Activated</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        max-width: 680px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      code {
+        background: #f6f6f6;
+        padding: 0.25rem 0.4rem;
+        border-radius: 0.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>You're Pro</h1>
+    {% if key %}
+    <p>Here is your API key (also emailed if you configured email):</p>
+    <p><code>{{ key.key }}</code></p>
+    <p>
+      Label: <code>{{ key.label }}</code><br />Expires:
+      <code>{{ key.expires }}</code>
+    </p>
+    <p>
+      How to use: visit <code>/login?key=&lt;YOUR_API_KEY&gt;</code> once, then
+      your browser cookie will let you access <code>/ui</code>.
+    </p>
+    {% else %}
+    <p>
+      Payment looks verified, but we couldn’t allocate a key (pool empty).
+      Please contact support.
+    </p>
+    {% endif %}
+    <p><a href="/ui">Go to the app →</a></p>
+  </body>
+</html>
