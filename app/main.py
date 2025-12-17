@@ -19,6 +19,7 @@ from .notify import send_slack, send_email
 from .config import load_config, path_ignored, baseline_contains, load_policy
 from .models import ScanRequest, ScanResult, Finding
 from .scanner import scan_text, set_scanner_policy
+from .history import add_scan_entry, list_scans
 from .utils_github import (
     list_repo_tree,
     fetch_file,
@@ -284,10 +285,14 @@ async def scan_ui(
     branch: str = Form("main"),
     _: None = Depends(require_api_key),
 ):
+    """
+    UI endpoint: runs a scan and renders results.html.
+    Now also records scan history (summary) for later Pro viewing.
+    """
     gh_token = request.session.get("gh_token")
 
     try:
-        res = await scan_repo(
+        res: ScanResult = await scan_repo(
             ScanRequest(
                 repo_url=repo_url,
                 branch=branch,
@@ -296,9 +301,26 @@ async def scan_ui(
                 github_token=gh_token,
             )
         )
+
+        # Try to record history (non-fatal if it fails)
+        try:
+            add_scan_entry(
+                source="web",
+                repo_url=repo_url,
+                branch=branch,
+                findings=res.findings,
+                api_key=request.cookies.get("api_key"),
+            )
+        except Exception as hx:
+            print("HISTORY-ERROR (web):", hx)
+
         return templates.TemplateResponse(
             "results.html",
-            {"request": request, "result": res, "error": None},
+            {
+                "request": request,
+                "result": res,
+                "error": None,
+            },
         )
 
     except Exception as e:
@@ -319,6 +341,7 @@ async def scan_ui(
                 "error": error_msg,
             },
         )
+
 
 
 # --- CSV download (unchanged) ---
@@ -558,4 +581,21 @@ async def pro_callback(request: Request, reference: str | None = None):
     return templates.TemplateResponse(
         "pro_success.html",
         {"request": request, "key": key},
+    )
+
+
+# --- Scan history (Pro-only UI) ---
+
+
+@app.get("/history", response_class=HTMLResponse)
+async def history_page(request: Request):
+    try:
+        require_pro_api_key(request)
+    except HTTPException:
+        return RedirectResponse(url="/pro?reason=history", status_code=302)
+
+    scans = list_scans(limit=100)
+    return templates.TemplateResponse(
+        "history.html",
+        {"request": request, "scans": scans},
     )

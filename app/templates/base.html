@@ -49,6 +49,13 @@
     <header>
       <h1>Secrets Scanner</h1>
       <button id="ghBtn" type="button">Connect GitHub</button>
+      {% if request.cookies.get("api_key") %}
+      <span style="color: #2e7d32; font-weight: 600"> ✔ Pro Active </span>
+      {% else %}
+      <a href="/pro" style="color: #b00020; font-weight: 600">
+        Upgrade to Pro
+      </a>
+      {% endif %}
     </header>
     <script>
       document.getElementById("ghBtn").addEventListener("click", async () => {

@@ -83,6 +83,11 @@
     {% endif %} {% if result %}
     <h1>Results for {{ result.repo_url }}</h1>
     <p>
+      <a href="/ui">← New scan</a>
+      &nbsp;|&nbsp;
+      <a href="/history">View scan history (Pro)</a>
+    </p>
+    <p>
       Scanned files: {{ result.scanned_files }} | Findings:
       <span id="count">{{ result.findings|length }}</span>
     </p>
@@ -130,11 +135,22 @@
         <button type="submit">Next</button>
       </form>
 
-      <form action="/scan.csv" method="post" style="display: inline">
+      <!-- <form action="/scan.csv" method="post" style="display: inline">
         <input type="hidden" name="repo_url" value="{{ result.repo_url }}" />
         <input type="hidden" name="branch" value="main" />
         <button type="submit">Download CSV</button>
-      </form>
+      </form> -->
+      {% if request.cookies.get("api_key") %}
+      <a href="/scan.csv" class="btn">Download CSV</a>
+      {% else %}
+      <button disabled style="opacity: 0.5; cursor: not-allowed">
+        Download CSV (Pro)
+      </button>
+      <div style="font-size: 0.85rem; color: #b00020">
+        Export results for reporting & CI compliance →
+        <a href="/pro">Upgrade to Pro</a>
+      </div>
+      {% endif %}
     </div>
 
     {% if result.findings %}
@@ -173,6 +189,21 @@
     <h1>No results</h1>
     <p><a href="/ui">← Start a new scan</a></p>
     {% endif %}
+
+    <div style="margin-top: 1rem; padding: 0.75rem; border: 1px dashed #ccc">
+      <strong>Scan History & Audit Trail</strong><br />
+      <span style="color: #666">
+        Track previous scans, trends, and security posture over time. </span
+      ><br />
+
+      {% if request.cookies.get("api_key") %}
+      <a href="/history">View Scan History →</a>
+      {% else %}
+      <span style="color: #b00020">
+        Pro feature · <a href="/pro">Upgrade to unlock</a>
+      </span>
+      {% endif %}
+    </div>
 
     <script>
       // Only run filtering/sorting if a table exists

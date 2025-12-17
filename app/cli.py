@@ -5,6 +5,7 @@ from typing import Iterable, List
 from .scanner import scan_text, set_scanner_policy
 from .models import Finding
 from .utils_github import RAW_SKIP_EXTS  # reuse your existing skip list
+from .history import add_scan_entry
 from .config import (
     load_config,
     path_ignored,
@@ -232,6 +233,20 @@ def main(argv: List[str] | None = None) -> int:
         print(json.dumps(payload, indent=2))
     else:
         print_text(findings)
+
+    # -------------------------------
+    # Scan history (CLI)
+    # -------------------------------
+    try:
+        add_scan_entry(
+            source="cli",
+            repo_url=str(args.path),
+            branch="",
+            findings=findings,
+            api_key=None,
+        )
+    except Exception as hx:
+        print("HISTORY-ERROR (cli):", hx, file=sys.stderr)    
 
     # Non-zero exit if we found anything (good for CI/pre-commit)
     return 1 if findings else 0
