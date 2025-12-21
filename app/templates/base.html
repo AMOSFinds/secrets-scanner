@@ -49,22 +49,31 @@
     <header>
       <h1>Secrets Scanner</h1>
       <button id="ghBtn" type="button">Connect GitHub</button>
-      {% if request.cookies.get("api_key") %}
-      <span style="color: #2e7d32; font-weight: 600"> ✔ Pro Active </span>
-      {% else %}
-      <a href="/pro" style="color: #b00020; font-weight: 600">
-        Upgrade to Pro
-      </a>
-      {% endif %}
+      {% set is_pro = request.cookies.get("pro") == "true" %}
+
+      <div style="display: flex; gap: 0.75rem; align-items: center">
+        {% if is_pro %}
+        <span style="color: #2e7d32; font-weight: 600">✔ Pro Active</span>
+        <a href="/history" style="font-weight: 600; text-decoration: none">
+          Scan History
+        </a>
+        <a href="/logout" style="color: #666; text-decoration: none">
+          Logout
+        </a>
+        {% else %}
+        <a
+          href="/pro"
+          style="color: #b00020; font-weight: 600; text-decoration: none"
+        >
+          Upgrade to Pro
+        </a>
+        {% endif %}
+      </div>
     </header>
     <script>
       document.getElementById("ghBtn").addEventListener("click", async () => {
-        const apiKey = prompt(
-          "If API key is enabled, enter it now (or leave blank):"
-        );
-        const res = await fetch("/auth/github/login", {
-          headers: apiKey ? { "X-API-Key": apiKey } : {},
-        });
+        const res = await fetch("/auth/github/login");
+
         if (!res.ok) {
           alert("OAuth not configured or API key invalid.");
           return;
@@ -97,8 +106,14 @@
     >
       <h2 style="margin-top: 0">Secrets Scanner Pro</h2>
       <p style="margin-bottom: 0.5rem">
-        Hosted scanner + API key for your team.
+        <strong>Security for AI-generated code</strong> — catch leaked API keys,
+        JWTs, passwords, and high-entropy secrets before they ship.
       </p>
+      <p style="margin-top: 0; color: #666; font-size: 0.95rem">
+        Local-first by default. No cloud uploads. Built for CLI, pre-commit, CI
+        (SARIF), and self-hosted teams.
+      </p>
+
       <ul style="margin-top: 0.5rem; padding-left: 1.3rem">
         <li>Faster scans with higher limits</li>
         <li>Persistent API key for CLI / CI usage</li>
@@ -118,6 +133,11 @@
       >
         Upgrade to Pro
       </a>
+      <p style="margin-top: 0.8rem; margin-bottom: 0">
+        <span class="pill">Pro</span>
+        <strong>Scan History & Audit Trail</strong> — track scans over time
+        (great for AI-assisted workflows).
+      </p>
     </section>
   </body>
 </html>

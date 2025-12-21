@@ -1,7 +1,7 @@
-# Secrets Scanner
+# Secrets Scanner - Security for AI-generated code & developer pipelines
 
 **A fast, local-first, open-source secrets detection tool for developers, DevOps, and security teams.**  
-Detect API keys, credentials, JWTs, passwords, and high-entropy secrets _before_ they ever reach GitHub.
+Detect API keys, credentials, JWTs, passwords, and high-entropy secrets _before_ they ever reach GitHub — especially in fast-moving, AI-assisted codebases.
 
 <p align="left">
   <img src="https://img.shields.io/github/v/release/AMOSFinds/secrets-scanner" />

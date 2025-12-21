@@ -208,8 +208,9 @@ def health():
 
 
 @app.get("/ui", response_class=HTMLResponse)
-async def ui_form(request: Request, _: None = Depends(require_api_key)):
+async def ui_form(request: Request):
     return templates.TemplateResponse("base.html", {"request": request})
+
 
 
 # --- core scanning ---
@@ -283,7 +284,6 @@ async def scan_ui(
     page: int = Form(1),
     page_size: int = Form(100),
     branch: str = Form("main"),
-    _: None = Depends(require_api_key),
 ):
     """
     UI endpoint: runs a scan and renders results.html.
@@ -438,21 +438,45 @@ def access_submit(key: str = Form(...)):
 
 
 @app.get("/login")
-def login(key: str, response: Response):
+def login(request: Request, key: str):
     # Accept either the master API_KEY or any valid Pro key
     if not _is_key_allowed(key):
         raise HTTPException(status_code=401, detail="Bad key")
 
+    # 30-day persistence
+    max_age = 60 * 60 * 24 * 30
+
+    # Secure cookies on HTTPS (Render), not on localhost
+    secure_flag = request.url.scheme == "https"
+
     resp = RedirectResponse(url="/ui", status_code=302)
-    # 7-day cookie; HttpOnly so JS can’t read it
+
+    # Backend auth cookie (used by require_pro_api_key, etc.)
     resp.set_cookie(
         "api_key",
         key,
         httponly=True,
         samesite="lax",
-        max_age=60 * 60 * 24 * 7,
+        max_age=max_age,
+        secure=secure_flag,
     )
+
+    # UX cookie: only set pro=true if the key is actually a Pro key
+    if pro_key_valid_now(key):
+        resp.set_cookie(
+            "pro",
+            "true",
+            httponly=False,   # templates can read it
+            samesite="lax",
+            max_age=max_age,
+            secure=secure_flag,
+        )
+    else:
+        # If they logged in with the master key, don't show Pro UI
+        resp.delete_cookie("pro")
+
     return resp
+
 
 
 # --- GitHub OAuth for private repos ---
@@ -578,10 +602,33 @@ async def pro_callback(request: Request, reference: str | None = None):
     }
     save_users(db)
 
-    return templates.TemplateResponse(
+    resp = templates.TemplateResponse(
         "pro_success.html",
         {"request": request, "key": key},
     )
+
+    max_age = 60 * 60 * 24 * 30
+    secure_flag = request.url.scheme == "https"
+    k = key.get("key")
+
+    if k:
+        resp.set_cookie(
+            "api_key",
+            k,
+            httponly=True,
+            samesite="lax",
+            max_age=max_age,
+            secure=secure_flag,
+        )
+        resp.set_cookie(
+            "pro",
+            "true",
+            httponly=False,
+            samesite="lax",
+            max_age=max_age,
+            secure=secure_flag,
+        )
+    return resp    
 
 
 # --- Scan history (Pro-only UI) ---
@@ -599,3 +646,10 @@ async def history_page(request: Request):
         "history.html",
         {"request": request, "scans": scans},
     )
+
+@app.get("/logout")
+def logout(request: Request):
+    resp = RedirectResponse(url="/ui", status_code=302)
+    resp.delete_cookie("api_key")
+    resp.delete_cookie("pro")
+    return resp
