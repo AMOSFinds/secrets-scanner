@@ -171,7 +171,10 @@
           <td class="file">{{ f.file_path }}</td>
           <td class="line">{{ f.line }}</td>
           <td class="pattern">{{ f.pattern }}</td>
-          <td class="entropy">{{ '%.2f'|format(f.entropy) }}</td>
+          <td class="entropy">
+            {% if f.entropy is not none %} {{ "%.2f"|format(f.entropy) }} {%
+            else %} — {% endif %}
+          </td>
           <td class="severity">
             <span class="badge {{ f.severity }}">{{ f.severity }}</span>
           </td>
