@@ -141,7 +141,16 @@
         <button type="submit">Download CSV</button>
       </form> -->
       {% if request.cookies.get("api_key") %}
-      <a href="/scan.csv" class="btn">Download CSV</a>
+      <form action="/scan.csv" method="post" style="display: inline">
+        <input type="hidden" name="repo_url" value="{{ result.repo_url }}" />
+        <input
+          type="hidden"
+          name="branch"
+          value="{{ result.branch or 'main' }}"
+        />
+        <button type="submit" class="btn">Download CSV</button>
+      </form>
+
       {% else %}
       <button disabled style="opacity: 0.5; cursor: not-allowed">
         Download CSV (Pro)
